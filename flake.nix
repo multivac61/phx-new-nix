@@ -26,21 +26,17 @@
           version = builtins.head (
             builtins.match ".*version:[[:space:]]*\"([0-9]+\\.[0-9]+\\.[0-9]+)\".*" mixExs
           );
-          translatedPlatform =
-            {
-              aarch64-darwin = "macos-arm64";
-              aarch64-linux = "linux-arm64";
-              armv7l-linux = "linux-armv7";
-              x86_64-darwin = "macos-x64";
-              x86_64-linux = "linux-x64";
-            }
-            .${system};
-          preInstall = ''
-            ln -s ${pkgs.tailwindcss}/bin/tailwindcss _build/tailwind-${translatedPlatform}
-            ln -s ${pkgs.esbuild}/bin/esbuild _build/esbuild-${translatedPlatform}
+          # Explicitly declare tailwind and esbuild binary paths (don't let Mix fetch them)
+          preConfigure = ''
+            substituteInPlace config/config.exs \
+              --replace "config :tailwind," "config :tailwind, path: \"${pkgs.tailwindcss}/bin/tailwindcss\","\
+              --replace "config :esbuild," "config :esbuild, path: \"${pkgs.esbuild}/bin/esbuild\", "
 
-            ${pkgs.elixir}/bin/mix assets.deploy
-            ${pkgs.elixir}/bin/mix phx.gen.release
+          '';
+
+          preInstall = ''
+            # Deploy assets before creating release: https://github.com/phoenixframework/phoenix/issues/2690
+            mix do deps.loadpaths --no-deps-check, assets.deploy
           '';
         in
         {
@@ -59,6 +55,7 @@
                 pname
                 version
                 src
+                preConfigure
                 preInstall
                 ;
               mixFodDeps = fetchMixDeps {
@@ -74,10 +71,26 @@
                 pname
                 version
                 src
+                preConfigure
                 preInstall
                 ;
               mixNixDeps = import ./hello/deps.nix { inherit lib beamPackages pkgs; };
             };
+
+          packages.mix2nix =
+            with pkgs.beamPackages;
+            beamPackages.mixRelease {
+              inherit
+                pname
+                version
+                src
+                preConfigure
+                preInstall
+                ;
+              mixNixDeps = import ./hello/mix2nix-deps.nix { inherit lib beamPackages; };
+            };
+
+          checks = self'.packages // self'.devShells;
         };
     };
 }
