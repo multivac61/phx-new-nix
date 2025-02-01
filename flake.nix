@@ -16,6 +16,7 @@
       perSystem =
         {
           pkgs,
+          self',
           system,
           lib,
           ...
@@ -30,7 +31,11 @@
         in
         {
           devShells.default = pkgs.mkShell {
-            packages = [ pkgs.elixir ] ++ lib.optionals pkgs.stdenv.isLinux [ pkgs.inotify-tools ];
+            packages = lib.optionals pkgs.stdenv.isLinux [ pkgs.inotify-tools ];
+            inputsFrom = [
+              self'.packages.fod
+              self'.packages.deps_nix
+            ];
           };
 
           packages.fod =
