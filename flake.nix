@@ -4,8 +4,6 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
     flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
-    heroicons.url = "github:tailwindlabs/heroicons/v2.1.1";
-    heroicons.flake = false;
     systems.url = "github:nix-systems/default";
   };
   outputs =
@@ -28,6 +26,18 @@
           version = builtins.head (
             builtins.match ".*version:[[:space:]]*\"([0-9]+\\.[0-9]+\\.[0-9]+)\".*" mixExs
           );
+          # Explicitly declare tailwind and esbuild binary paths (don't let Mix fetch them)
+          preConfigure = ''
+            substituteInPlace config/config.exs \
+              --replace "config :tailwind," "config :tailwind, path: \"${pkgs.tailwindcss}/bin/tailwindcss\","\
+              --replace "config :esbuild," "config :esbuild, path: \"${pkgs.esbuild}/bin/esbuild\", "
+
+          '';
+
+          preInstall = ''
+            # Deploy assets before creating release: https://github.com/phoenixframework/phoenix/issues/2690
+            mix do deps.loadpaths --no-deps-check, assets.deploy
+          '';
         in
         {
           devShells.default = pkgs.mkShell {
@@ -39,43 +49,48 @@
           };
 
           packages.fod =
-            let
-              translatedPlatform =
-                {
-                  aarch64-darwin = "macos-arm64";
-                  aarch64-linux = "linux-arm64";
-                  armv7l-linux = "linux-armv7";
-                  x86_64-darwin = "macos-x64";
-                  x86_64-linux = "linux-x64";
-                }
-                .${system};
-            in
-            with pkgs;
             with pkgs.beamPackages;
             mixRelease {
-              inherit pname version src;
+              inherit
+                pname
+                version
+                src
+                preConfigure
+                preInstall
+                ;
               mixFodDeps = fetchMixDeps {
                 inherit version src pname;
-                sha256 = "sha256-bEaxsw3OdRoiGoi1Vv2k0QxNT/PdGDGsOf5UDho3L1o=";
-                buildInputs = [ ];
-                propagatedBuildInputs = [ ];
+                sha256 = "sha256-KDQh1f347ASDjYZSZ3iDMfy1Rv61jdgaaaBbTVayUPs=";
               };
-              preInstall = ''
-                ln -s ${tailwindcss}/bin/tailwindcss _build/tailwind-${translatedPlatform}
-                ln -s ${esbuild}/bin/esbuild _build/esbuild-${translatedPlatform}
-
-                ${elixir}/bin/mix assets.deploy
-                ${elixir}/bin/mix phx.gen.release
-              '';
             };
 
           packages.deps_nix =
-            with pkgs;
             with pkgs.beamPackages;
-            mixRelease {
-              inherit pname version src;
+            beamPackages.mixRelease {
+              inherit
+                pname
+                version
+                src
+                preConfigure
+                preInstall
+                ;
               mixNixDeps = import ./hello/deps.nix { inherit lib beamPackages pkgs; };
             };
+
+          packages.mix2nix =
+            with pkgs.beamPackages;
+            beamPackages.mixRelease {
+              inherit
+                pname
+                version
+                src
+                preConfigure
+                preInstall
+                ;
+              mixNixDeps = import ./hello/mix2nix-deps.nix { inherit lib beamPackages; };
+            };
+
+          checks = self'.packages // self'.devShells;
         };
     };
 }
