@@ -60,7 +60,7 @@
                 ;
               mixFodDeps = fetchMixDeps {
                 inherit version src pname;
-                sha256 = "sha256-bEaxsw3OdRoiGoi1Vv2k0QxNT/PdGDGsOf5UDho3L1o=";
+                sha256 = "sha256-KDQh1f347ASDjYZSZ3iDMfy1Rv61jdgaaaBbTVayUPs=";
               };
             };
 
