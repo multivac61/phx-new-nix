@@ -31,7 +31,6 @@
             substituteInPlace config/config.exs \
               --replace "config :tailwind," "config :tailwind, path: \"${pkgs.tailwindcss}/bin/tailwindcss\","\
               --replace "config :esbuild," "config :esbuild, path: \"${pkgs.esbuild}/bin/esbuild\", "
-
           '';
 
           preInstall = ''
@@ -42,10 +41,7 @@
         {
           devShells.default = pkgs.mkShell {
             packages = lib.optionals pkgs.stdenv.isLinux [ pkgs.inotify-tools ];
-            inputsFrom = [
-              self'.packages.fod
-              self'.packages.deps_nix
-            ];
+            inputsFrom = [ self'.packages.fod ];
           };
 
           packages.fod =
@@ -60,34 +56,8 @@
                 ;
               mixFodDeps = fetchMixDeps {
                 inherit version src pname;
-                sha256 = "sha256-KDQh1f347ASDjYZSZ3iDMfy1Rv61jdgaaaBbTVayUPs=";
+                sha256 = "sha256-bEaxsw3OdRoiGoi1Vv2k0QxNT/PdGDGsOf5UDho3L1o=";
               };
-            };
-
-          packages.deps_nix =
-            with pkgs.beamPackages;
-            beamPackages.mixRelease {
-              inherit
-                pname
-                version
-                src
-                preConfigure
-                preInstall
-                ;
-              mixNixDeps = import ./hello/deps.nix { inherit lib beamPackages pkgs; };
-            };
-
-          packages.mix2nix =
-            with pkgs.beamPackages;
-            beamPackages.mixRelease {
-              inherit
-                pname
-                version
-                src
-                preConfigure
-                preInstall
-                ;
-              mixNixDeps = import ./hello/mix2nix-deps.nix { inherit lib beamPackages; };
             };
 
           checks = self'.packages // self'.devShells;
