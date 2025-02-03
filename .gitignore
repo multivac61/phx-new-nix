@@ -37,3 +37,5 @@ data/
 .elixir_ls
 
 result
+
+.DS_Store
